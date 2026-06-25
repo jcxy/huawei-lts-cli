@@ -7,6 +7,8 @@ const ENV_MAP: Record<string, string> = {
   projectId: 'LTS_PROJECT_ID',
   region: 'LTS_REGION',
   endpoint: 'LTS_ENDPOINT',
+  groupId: 'LTS_GROUP_ID',
+  streamId: 'LTS_STREAM_ID',
 };
 
 function getEnvValue(key: string): string | undefined {
@@ -25,6 +27,8 @@ export function loadConfig(): LTSConfig {
     projectId: getEnvValue('projectId') ?? config.projectId ?? '',
     region: getEnvValue('region') ?? config.region ?? '',
     endpoint: getEnvValue('endpoint') ?? config.endpoint ?? '',
+    groupId: getEnvValue('groupId') ?? config.groupId,
+    streamId: getEnvValue('streamId') ?? config.streamId,
   };
 }
 

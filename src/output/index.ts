@@ -1,4 +1,4 @@
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import { QueryResult, OutputFormat } from '../types';
 import { formatJson } from './json';
 import { formatTable } from './table';

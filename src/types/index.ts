@@ -4,6 +4,8 @@ export interface LTSConfig {
   projectId: string;
   region: string;
   endpoint: string;
+  groupId?: string;
+  streamId?: string;
 }
 
 export interface QueryParams {

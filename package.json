@@ -1,20 +1,44 @@
 {
-  "name": "huawei-lts-cli",
+  "name": "@cvtoolman/huawei-lts-cli",
   "version": "1.0.0",
-  "description": "华为云LTS CLI+Skill日志查询工具",
+  "description": "Command-line tool for querying Huawei Cloud Log Tank Service (LTS) logs",
   "main": "dist/cli/index.js",
   "bin": {
     "lts-cli": "./dist/cli/index.js"
   },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
-    "clean": "rm -rf dist"
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "prepublishOnly": "npm run clean && npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "huawei-cloud",
+    "huawei",
+    "lts",
+    "log-tank-service",
+    "logs",
+    "cli",
+    "log-query",
+    "cloud-logging"
+  ],
+  "author": "cvtoolman",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcxy/huawei-lts-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jcxy/huawei-lts-cli/issues"
+  },
+  "homepage": "https://github.com/jcxy/huawei-lts-cli#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@huaweicloud/huaweicloud-sdk-core": "latest",
     "@huaweicloud/huaweicloud-sdk-lts": "latest",
