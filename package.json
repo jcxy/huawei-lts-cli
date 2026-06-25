@@ -1,0 +1,31 @@
+{
+  "name": "huawei-lts-cli",
+  "version": "1.0.0",
+  "description": "华为云LTS CLI+Skill日志查询工具",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "lts-cli": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@huaweicloud/huaweicloud-sdk-core": "latest",
+    "@huaweicloud/huaweicloud-sdk-lts": "latest",
+    "chalk": "^4.1.2",
+    "cli-table3": "latest",
+    "commander": "latest",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
