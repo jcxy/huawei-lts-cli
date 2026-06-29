@@ -13,7 +13,8 @@ export interface QueryParams {
   streamId: string;
   startTime: string; // ISO 8601
   endTime: string;     // ISO 8601
-  keyword?: string;
+  keyword?: string;    // 向后兼容：简单关键词搜索
+  query?: string;      // SQL查询语句或结构化查询表达式
   limit?: number;
   offset?: number;
   reverse?: boolean;

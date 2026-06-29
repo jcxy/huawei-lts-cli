@@ -69,18 +69,33 @@ curl -o .qoder/skills/huawei-lts-log-query/SKILL.md \
 # 基础查询
 lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z
 
-# 关键词搜索
+# 简单关键词搜索（旧版，向后兼容）
 lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z -k "ERROR"
+
+# 高级查询：多字段组合（推荐）
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "content:error AND appName:myapp"
+
+# 复杂逻辑查询
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "(level:ERROR OR level:WARN) NOT env:test"
+
+# SQL 分析查询
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "SELECT count(*) as cnt, level FROM log GROUP BY level" \
+  -f json
 
 # JSON 格式输出，管道给 jq 处理
 lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z -f json | jq .
 ```
 
+> 💡 **提示**：使用 `-q` 参数可实现与 LTS 控制台相同的多条件组合查询功能。详见 [查询语法速查表](skills/huawei-lts-log-query/references/cheatsheet.md) 和 [高级查询指南](skills/huawei-lts-log-query/references/advanced-query-guide.md)。
+
 ## 命令参考
 
 ### `lts-cli query` — 查询日志
 
-```
+```bash
 lts-cli query [选项]
 
 选项:
@@ -88,13 +103,65 @@ lts-cli query [选项]
   -s, --stream-id <streamId>    日志流 ID（可在配置中预设）
   --start-time, --st <time>     开始时间，ISO 8601 格式（必填）
   --end-time, --et <time>       结束时间，ISO 8601 格式（必填）
-  -k, --keyword <keyword>       搜索关键词
+  -k, --keyword <keyword>       简单关键词搜索（旧版，不推荐）
+  -q, --query <query>           高级查询表达式（推荐）：
+                                  - 字段查询: content:error AND appName:myapp
+                                  - 比较运算: time>60 AND region:r
+                                  - SQL语法: SELECT * FROM log WHERE ...
+                                  - 逻辑运算符: AND, OR, NOT（需空格分隔）
   -l, --limit <limit>           每页条数（默认: 100）
   -o, --offset <offset>         分页偏移量（默认: 0）
   -r, --reverse                 按时间倒序
   -f, --format <format>         输出格式: pretty、json、table（默认: pretty）
   --no-paginate                 关闭自动翻页
 ```
+
+#### 高级查询语法示例
+
+**字段查询：**
+```bash
+# 单字段匹配
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "content:error"
+
+# 多字段组合（且关系）
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "content:error AND appName:myapp AND node:server1"
+
+# 多字段组合（或关系）
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "level:ERROR OR level:WARN"
+
+# 排除条件
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "level:DEBUG NOT module:test"
+
+# 数值比较
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "response_time>1000 AND status_code!=200"
+
+# 复杂组合
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "(level:ERROR OR level:WARN) NOT env:test"
+```
+
+**SQL 查询：**
+```bash
+# 统计各应用错误数量
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "SELECT count(*) as cnt, appName FROM log WHERE content LIKE '%error%' GROUP BY appName"
+
+# 平均响应时间
+lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z \
+  -q "SELECT avg(response_time) as avg_time FROM log WHERE status_code=200"
+```
+
+> ⚠️ **注意**：AND、OR、NOT 前后必须有**空格**！
+
+详细文档请查看：
+- [查询语法速查表](skills/huawei-lts-log-query/references/cheatsheet.md)
+- [高级查询指南](skills/huawei-lts-log-query/references/advanced-query-guide.md)
+- [控制台 vs CLI 对照](skills/huawei-lts-log-query/references/query-comparison.md)
 
 ### `lts-cli config` — 管理配置
 

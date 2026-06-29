@@ -14,7 +14,12 @@ export function createQueryCommand(): Command {
     .requiredOption('--end-time <endTime>', 'End time (ISO 8601, e.g. 2024-01-02T00:00:00Z)')
     .option('--st <startTime>', 'Alias for --start-time')
     .option('--et <endTime>', 'Alias for --end-time')
-    .option('-k, --keyword <keyword>', 'Search keyword')
+    .option('-k, --keyword <keyword>', 'Simple keyword search (legacy, use --query for advanced queries)')
+    .option('-q, --query <query>', 'Advanced query expression. Supports:\n' +
+      '  - Field queries: content:error AND appName:myapp\n' +
+      '  - Comparison: time>60 AND region:r\n' +
+      '  - SQL syntax: SELECT * FROM log WHERE content LIKE \'%error%\'\n' +
+      '  - Logical operators: AND, OR, NOT (must be surrounded by spaces)')
     .option('-l, --limit <limit>', 'Limit number of results', parseInt, 100)
     .option('-o, --offset <offset>', 'Offset for pagination', parseInt, 0)
     .option('-r, --reverse', 'Reverse order (newest first)')
@@ -70,6 +75,7 @@ export function createQueryCommand(): Command {
         startTime,
         endTime,
         keyword: options.keyword,
+        query: options.query,
         limit: options.limit,
         offset: options.offset,
         reverse: options.reverse,

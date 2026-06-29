@@ -39,7 +39,11 @@ export class LTSClient {
       .withEndTime(new Date(params.endTime).getTime().toString())
       .withLimit(params.limit ?? 100);
 
-    if (params.keyword) {
+    // 优先使用 query 参数（支持SQL和结构化查询）
+    if (params.query) {
+      queryParams.withQuery(params.query);
+    } else if (params.keyword) {
+      // 向后兼容：简单关键词搜索
       queryParams.withKeywords(params.keyword);
     }
 
