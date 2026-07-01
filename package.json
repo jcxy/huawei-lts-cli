@@ -1,6 +1,6 @@
 {
   "name": "@cvtoolman/huawei-lts-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Command-line tool for querying Huawei Cloud Log Tank Service (LTS) logs",
   "main": "dist/cli/index.js",
   "bin": {
