@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { createQueryCommand } from './commands/query';
+import { createTraceCommand } from './commands/trace';
+import { createContextCommand } from './commands/context';
+import { createGroupsCommand, createStreamsCommand } from './commands/streams';
 import { createConfigCommand } from './commands/config';
 import { createInitCommand } from './commands/init';
 
@@ -13,8 +16,12 @@ program
   .addHelpText('after', `
 Examples:
   $ lts-cli init                     Setup credentials interactively
+  $ lts-cli init --from-url <url>    Import region/groupId/streamId from a console URL
   $ lts-cli config --list            Show current configuration
-  $ lts-cli query --st 2024-01-01T00:00:00Z --et 2024-01-02T00:00:00Z
+  $ lts-cli query --last 2h --app acerp-gateway --content "error"
+  $ lts-cli trace <requestId>        Fetch full request chain by REQUEST_ID
+  $ lts-cli groups                   List log groups
+  $ lts-cli streams                  List log streams
 
 Environment variables:
   LTS_AK           Access Key
@@ -28,6 +35,10 @@ Environment variables:
 
 program.addCommand(createInitCommand());
 program.addCommand(createQueryCommand());
+program.addCommand(createTraceCommand());
+program.addCommand(createContextCommand());
+program.addCommand(createGroupsCommand());
+program.addCommand(createStreamsCommand());
 program.addCommand(createConfigCommand());
 
 // Shell completion support
@@ -44,7 +55,7 @@ _lts_cli_completion() {
   local cur="\${words[cword]}"
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W "query config init completion" -- "\$cur") )
+    COMPREPLY=( $(compgen -W "query trace context groups streams config init completion" -- "\$cur") )
     return
   fi
 
@@ -85,6 +96,10 @@ _lts_cli() {
   local -a commands
   commands=(
     'query:Query LTS logs'
+    'trace:Trace request chain by REQUEST_ID'
+    'context:View logs before/after a log entry'
+    'groups:List log groups'
+    'streams:List log streams'
     'config:Manage configuration'
     'init:Interactive setup wizard'
     'completion:Generate shell completion script'
@@ -139,7 +154,7 @@ compdef _lts_cli lts-cli`);
 Register-ArgumentCompleter -CommandName lts-cli -ScriptBlock {
   param(\$wordToComplete, \$commandAst, \$cursorPosition)
 
-  \$commands = @('query', 'config', 'init', 'completion')
+  \$commands = @('query', 'trace', 'context', 'groups', 'streams', 'config', 'init', 'completion')
 
   \$args = \$commandAst.ToString() -split '\\s+'
   if (\$args.Count -le 1) {

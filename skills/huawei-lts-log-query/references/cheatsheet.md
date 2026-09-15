@@ -105,44 +105,86 @@ SELECT avg(field) FROM log WHERE condition
 
 ## 完整命令模板
 
+### query
 ```bash
 lts-cli query \
-  --st <开始时间> \
-  --et <结束时间> \
-  -q "<查询表达式>" \
+  --last <相对时间> \        # 如 30m/2h/1d/7d，推荐
+  [--st <开始时间>] \        # 或用 ISO 8601 精确时间
+  [--et <结束时间>] \
+  [--app <appName>] \        # 按应用过滤
+  [--content <关键词>] \     # 按内容过滤
+  [-q "<查询表达式>"] \
   [-g <日志组ID>] \
   [-s <日志流ID>] \
   [-l <每页条数>] \
-  [-o <偏移量>] \
-  [-r] \              # 倒序（最新优先）
-  [-f <输出格式>]     # pretty/json/table
+  [-r] \                     # 倒序（最新优先）
+  [-f <输出格式>]            # pretty/json/table
+```
+
+### trace（请求链路）
+```bash
+lts-cli trace <requestId> [--field REQUEST_ID|trace_id|content] [--last 24h] [-l 200]
+```
+
+### context（上下文）
+```bash
+lts-cli context --line-num <n> --time <毫秒时间戳> [--before 20] [--after 20]
+```
+
+### groups / streams（发现日志组/流）
+```bash
+lts-cli groups
+lts-cli streams [-g <日志组名>]
 ```
 
 ## 时间格式
 
-ISO 8601 格式：`YYYY-MM-DDTHH:mm:ssZ`
+**优先使用相对时间 `--last`**：
+- 最近30分钟：`--last 30m`
+- 最近2小时：`--last 2h`
+- 最近1天：`--last 1d`
+- 最近7天：`--last 7d`
 
-**常用时间：**
+**精确时间**（ISO 8601：`YYYY-MM-DDTHH:mm:ssZ`）：
 - 今天：`--st 2024-06-29T00:00:00Z --et 2024-06-29T23:59:59Z`
-- 最近1小时：`--st 2024-06-29T12:00:00Z --et 2024-06-29T13:00:00Z`
 - 最近24小时：`--st 2024-06-28T13:00:00Z --et 2024-06-29T13:00:00Z`
 
-## 常见字段
+`--last` 与 `--st/--et` 互斥，只能选一种。
 
-| 字段名 | 说明 | 类型 | 示例 |
-|--------|------|------|------|
-| `content` | 日志内容 | string | `content:error` |
-| `level` | 日志级别 | string | `level:ERROR` |
-| `appName` | 应用名称 | string | `appName:myapp` |
-| `node` | 节点名称 | string | `node:server1` |
-| `env` | 环境标识 | string | `env:production` |
-| `module` | 模块名称 | string | `module:user-service` |
-| `response_time` | 响应时间(ms) | number | `response_time>1000` |
-| `status_code` | HTTP状态码 | number | `status_code!=200` |
-| `method` | HTTP方法 | string | `method:POST` |
-| `__time__` | 时间戳 | number | 用于分页 |
+## 常见字段（acerp 日志流已核实，2026-09）
 
-> **注意：** 具体可用字段取决于您的日志结构化配置
+**已建索引字段**（可用于字段查询 `field:value`，全部 string 类型）：
+
+| 字段名 | 说明 | 示例 |
+|--------|------|------|
+| `appName` | 应用名称（内置） | `appName:acerp-gateway` |
+| `REQUEST_ID` | 请求链路 ID | `REQUEST_ID:0a1b2c3d` |
+| `trace_id` | 链路追踪 ID | `trace_id:abc123` |
+| `level` | 日志级别 | `level:ERROR` |
+| `node` | 节点名称 | `node:server1` |
+| `thread` | 线程名 | `thread:http-nio` |
+| `throwable` | 异常堆栈 | `throwable:NullPointerException` |
+| `location` | 代码位置 | `location:OrderService` |
+| `USER_ID` | 用户 ID | `USER_ID:12345` |
+| `X-TX-XID` | Seata 全局事务 ID | - |
+| `X-TX-BRANCH-ID` | Seata 分支事务 ID | - |
+| `powerjob.jobId` / `powerjob.instanceId` / `powerjob.processor` | 定时任务相关 | - |
+
+**未建索引**（只能全文搜 `content:xxx`）：`span_id`、`REMOTE_ADDRESS`、`ACCOUNT`、`COMPANY_ID`
+
+> **注意：** 全文索引大小写敏感，`content:ERROR` ≠ `content:error`
+
+## SQL 管道语法
+
+控制台新版使用管道符语法：`搜索语句 | SQL分析语句`
+
+```bash
+# 裸 SELECT 会自动包装为 "* | SELECT ..."
+-q "SELECT count(*) as cnt, level FROM log GROUP BY level"
+
+# 显式管道语法：先过滤再统计
+-q "level:ERROR | SELECT count(*) as cnt, appName FROM log GROUP BY appName"
+```
 
 ## 常见错误
 

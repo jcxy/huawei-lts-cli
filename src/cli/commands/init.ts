@@ -35,7 +35,14 @@ export function createInitCommand(): Command {
   const cmd = new Command('init');
 
   cmd.description('Interactive setup wizard — configure credentials step by step')
-    .action(async () => {
+    .option('--from-url <url>', 'Import region/groupId/streamId from an LTS console URL (non-interactive)')
+    .action(async (options) => {
+      // 从控制台 URL 导入：解析 region、groupId、topicId（即 streamId），无需交互
+      if (options.fromUrl) {
+        importFromConsoleUrl(options.fromUrl);
+        return;
+      }
+
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -127,4 +134,60 @@ export function createInitCommand(): Command {
     });
 
   return cmd;
+}
+
+/** 从华为云 LTS 控制台 URL 中解析 region / groupId / streamId 并写入配置 */
+function importFromConsoleUrl(raw: string): void {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    console.error('Error: Invalid URL. Please paste the full console URL, e.g.:');
+    console.error('  https://console.huaweicloud.com/lts/?region=cn-south-1#/cts/logEventsLeftMenu/events?groupId=...&topicId=...');
+    process.exit(1);
+  }
+
+  const region = url.searchParams.get('region') || undefined;
+
+  // groupId / topicId 位于 hash 段的查询参数中：#/cts/logEventsLeftMenu/events?groupId=...&topicId=...
+  const hash = url.hash || '';
+  const qIndex = hash.indexOf('?');
+  const hashParams = new URLSearchParams(qIndex >= 0 ? hash.slice(qIndex + 1) : '');
+  const groupId = hashParams.get('groupId') || url.searchParams.get('groupId') || undefined;
+  const streamId = hashParams.get('topicId') || hashParams.get('streamId') || url.searchParams.get('topicId') || undefined;
+
+  if (!region && !groupId && !streamId) {
+    console.error('Error: No region/groupId/topicId found in the URL. Make sure it is an LTS log search page URL.');
+    process.exit(1);
+  }
+
+  console.log('');
+  console.log('Importing from console URL:');
+
+  if (region) {
+    setConfig('region', region);
+    console.log(`  region   = ${region}`);
+
+    const autoEndpoint = ENDPOINT_MAP[region];
+    if (autoEndpoint) {
+      setConfig('endpoint', `https://${autoEndpoint}`);
+      console.log(`  endpoint = https://${autoEndpoint} (derived from region)`);
+    }
+  }
+  if (groupId) {
+    setConfig('groupId', groupId);
+    console.log(`  groupId  = ${groupId}`);
+  }
+  if (streamId) {
+    setConfig('streamId', streamId);
+    console.log(`  streamId = ${streamId}`);
+  }
+
+  console.log('');
+  console.log('✅ Configuration saved!');
+  console.log('');
+  console.log('Next steps:');
+  console.log('  1. Configure credentials if not done yet: lts-cli init');
+  console.log('  2. Query logs: lts-cli query --last 2h --content "error"');
+  console.log('');
 }
