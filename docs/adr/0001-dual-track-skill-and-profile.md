@@ -1,6 +1,6 @@
 # ADR-0001: 公开 skill 与本地 profile 双轨分离
 
-- **状态**：已接受
+- **状态**：已被 [ADR-0004](0004-retire-local-profile.md) 取代（Superseded）
 - **日期**：2026-10-24
 
 ## 背景

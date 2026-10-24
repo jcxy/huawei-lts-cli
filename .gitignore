@@ -9,6 +9,11 @@ dist/
 .env.*
 !.env.example
 
+# Skill 里用户自加的业务词表 —— 只放行两份内置文档
+skills/huawei-lts-log-query/references/*
+!skills/huawei-lts-log-query/references/cli-reference.md
+!skills/huawei-lts-log-query/references/query-syntax.md
+
 # IDE & Editor
 .vscode/
 .idea/

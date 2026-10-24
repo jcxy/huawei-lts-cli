@@ -1,0 +1,45 @@
+name: 功能建议
+description: 想让 CLI 或 skill 多做点什么
+title: "[feat] "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前先看一眼 [CONTEXT.md](../blob/main/CONTEXT.md) 和 [docs/adr/](../tree/main/docs/adr)：
+        有些看起来缺失的功能是**刻意不做**的（例如不把业务词表写进配置文件、不缓存字段清单），
+        ADR 里写了为什么。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的是什么问题
+      description: 描述场景，不要直接给方案。"我想查某类日志时，每次都要手动……"比"加一个 --foo 参数"有用得多。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你设想的做法
+    validations:
+      required: false
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 影响哪一部分
+      options:
+        - CLI（命令、参数、输出格式）
+        - Skill（SKILL.md 里的 AI 工作流）
+        - 文档
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 现在你怎么绕过这个问题
+    validations:
+      required: false

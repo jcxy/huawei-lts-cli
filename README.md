@@ -3,6 +3,7 @@
 **简体中文** | [English](README_en.md)
 
 [![npm version](https://img.shields.io/npm/v/@cvtoolman/huawei-lts-cli.svg)](https://www.npmjs.com/package/@cvtoolman/huawei-lts-cli)
+[![CI](https://github.com/jcxy/huawei-lts-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/jcxy/huawei-lts-cli/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 让你的 AI 编程助手（Claude Code、Cursor、Copilot、Qoder 等）通过自然语言查询华为云日志服务（LTS）。
@@ -60,14 +61,15 @@ npm install -g @cvtoolman/huawei-lts-cli
 lts-cli init
 ```
 
-向导会依次询问 AK、SK、Project ID、Region，一次配好。同时会生成两个文件：
+向导会依次询问 AK、SK、Project ID、Region，一次配好，只写一个文件：
 
 | 文件 | 内容 | 谁读 |
 |---|---|---|
 | `~/.lts-cli/config.json` | 凭证、默认日志组/流、`traceField`（权限 0600） | 仅 CLI |
-| `~/.lts-cli/profile.md` | 业务词表：把「订单服务」映射到日志里的实际取值 | 仅 AI |
 
-**CLI 不读 `profile.md`，AI 不读 `config.json`。** 后者含明文 AK/SK，任何让 AI 读它的设计都是错的。
+**这个目录不要整个交给 AI**，里面是明文 AK/SK。要看配置用 `lts-cli config --list`（已脱敏），不需要打开文件。
+
+日志组有哪些、字段叫什么、值长什么样——这些事实全部靠 `lts-cli groups` / `streams` / `fields` 现查，仓库和配置里都不存第二份。
 
 拿到控制台日志搜索页的 URL 时，可以直接导入 region / groupId / streamId：
 
@@ -77,27 +79,34 @@ lts-cli init --from-url "<控制台URL>"
 
 ### 3. 安装 Skill（给 AI 工具用）
 
-skill 目录含 `SKILL.md` 和 2 个参考文档，整目录复制：
+用 [skills CLI](https://skills.sh) 一条命令装到对应工具的目录（支持 75+ 种 agent）：
 
 ```bash
-# Claude Code
+npx skills add jcxy/huawei-lts-cli -a qoder          # Qoder
+npx skills add jcxy/huawei-lts-cli -a claude-code    # Claude Code
+npx skills add jcxy/huawei-lts-cli -a cursor         # Cursor
+npx skills add jcxy/huawei-lts-cli                   # 交互式选 agent
+```
+
+装完重启 AI 工具：skill 在会话启动时读进上下文，已经开着的会话不会热加载。日常用 `npx skills update` 更新、`npx skills remove` 卸载。
+
+不想用 npx 也可以手动复制（任何工具都适用）：
+
+```bash
 git clone --depth 1 https://github.com/jcxy/huawei-lts-cli.git /tmp/huawei-lts-cli
-mkdir -p .claude/skills/huawei-lts-log-query
-cp -r /tmp/huawei-lts-cli/skills/huawei-lts-log-query/. .claude/skills/huawei-lts-log-query/
-
-# Qoder：把 .claude/skills/ 换成 .qoder/skills/
-# 其他工具：换成对应目录（.cursor/skills/ 等）
+cp -r /tmp/huawei-lts-cli/skills/huawei-lts-log-query <目标 skills 目录>/
 ```
 
-Windows PowerShell：
+> `npx skills` 默认用软链指向一份 git clone，更新时一起同步。用 `--copy`（Windows 无软链权限时的退路）或插件方式安装时，升级会整目录替换——如果你在里面放了业务词表，先备份。
 
-```powershell
-git clone --depth 1 https://github.com/jcxy/huawei-lts-cli.git $env:TEMP\huawei-lts-cli
-New-Item -ItemType Directory -Force .claude\skills\huawei-lts-log-query | Out-Null
-Copy-Item -Recurse -Force $env:TEMP\huawei-lts-cli\skills\huawei-lts-log-query\* .claude\skills\huawei-lts-log-query\
-```
+### 4. 业务词表（可选）
 
-### 4. 命令行直接使用（不依赖 AI）
+AI 不知道「订单服务」在你的日志里叫什么。两条路，都不需要配置文件：
+
+- **默认行为**：AI 用管道 SQL 实时枚举候选值（`* | SELECT appName, count(*) GROUP BY appName`），再问你挑哪一个。不落盘，也不会过期。
+- **想省这一步**：在 skill 的 `references/vocab.md` 里写映射。这个文件默认不存在，自己建；已被 `.gitignore` 排除，不会被误提交。
+
+### 5. 命令行直接使用（不依赖 AI）
 
 ```bash
 # 最近 2 小时最新 50 条
@@ -216,7 +225,19 @@ lts-cli config --set traceField=REQUEST_ID
 
 不在表里时用 `--set endpoint=https://...` 手动指定，或参考 [华为云 LTS 终端节点](https://support.huaweicloud.com/api-lts/lts_api_0011.html)。
 
-## 从 1.x 升级到 2.0
+## 升级说明
+
+### 从 2.0 升级到 2.1
+
+| 变更 | 说明 |
+|---|---|
+| `init` 不再生成 `~/.lts-cli/profile.md` | 业务词表改为 skill 目录下的 `references/vocab.md`。旧文件可以删，留着也没影响（CLI 从来没读过它） |
+| SKILL.md 增加运行时枚举候选值 | 没有词表也能定位应用名 |
+| 新增 `npx skills` 安装方式 | 见上文「安装 Skill」 |
+
+命令行参数没有变化，脚本不需要改。
+
+### 从 1.x 升级到 2.0
 
 2.0 修了三个会静默出错的问题，因此有破坏性变更：
 
@@ -243,9 +264,15 @@ npm test           # node:test，覆盖纯函数与游标推进
 npm run typecheck  # tsc --noEmit
 ```
 
-测试使用 Node 内置的 `node:test` + `tsx`，不引入额外测试依赖。跑测试需要 Node >= 20.6（`--import` 的要求）。
+测试使用 Node 内置的 `node:test` + `tsx`，不引入额外测试依赖。跑测试需要 Node >= 22——`node --test` 的通配符支持直到 22 才落地，20 上会报 `Could not find`。CLI 本身在 Node 18 上可以正常运行，CI 的 typecheck/build 覆盖 18/20/22。
 
-架构约定见 [CONTEXT.md](CONTEXT.md) 与 [docs/adr/](docs/adr/)。
+架构约定见 [CONTEXT.md](CONTEXT.md) 与 [docs/adr/](docs/adr/)。提交前请读 [CONTRIBUTING.md](CONTRIBUTING.md)——里面写了这个仓库唯一不能被破坏的原则：**同一个事实只允许有一个来源**。
+
+## 参与
+
+- 报告问题：[issue 模板](https://github.com/jcxy/huawei-lts-cli/issues/new/choose)（请勿贴真实凭证、日志组 ID 或内部业务名）
+- 安全问题：[SECURITY.md](SECURITY.md)，走私密通道，不要开公开 issue
+- 版本变更：[CHANGELOG.md](CHANGELOG.md)
 
 ## License
 

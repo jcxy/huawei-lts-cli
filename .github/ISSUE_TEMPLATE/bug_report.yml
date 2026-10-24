@@ -1,0 +1,65 @@
+name: Bug 报告
+description: 有东西坏掉了，或者结果明显不对
+title: "[bug] "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **不要贴真实的 AK/SK、日志组 ID、日志流 ID 或内部业务系统名。** 用 `my-app`、`<groupId>` 这类占位符代替。
+        如果问题涉及凭证泄漏，请走 [SECURITY.md](../blob/main/SECURITY.md) 里的私密通道，不要开公开 issue。
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: "`lts-cli --version` 的输出"
+      placeholder: 2.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      description: 操作系统 + Node 版本 + AI 工具（如果是通过 skill 触发的）
+      placeholder: Windows 11 / Node 22.11 / Qoder
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 建议贴完整输出。**stderr 的警告不要省略**——`isQueryComplete=false` 之类往往是关键线索。
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 贴出实际执行的命令（去掉敏感值）
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fields
+    attributes:
+      label: 如果返回结果为空，`lts-cli fields` 里是否有你查询的字段？
+      options:
+        - 没查过 / 不适用
+        - 字段存在
+        - 字段不存在（只有全文索引）
+        - 不确定
+    validations:
+      required: false
