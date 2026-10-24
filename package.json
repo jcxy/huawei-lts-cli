@@ -4,7 +4,7 @@
   "description": "Command-line tool for querying Huawei Cloud Log Tank Service (LTS) logs",
   "main": "dist/cli/index.js",
   "bin": {
-    "lts-cli": "./dist/cli/index.js"
+    "lts-cli": "dist/cli/index.js"
   },
   "files": [
     "dist/"
