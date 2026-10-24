@@ -4,9 +4,21 @@ import { setConfig, getConfig, listConfig, unsetConfig } from '../../config';
 /** 凭证类字段一律脱敏：`config --list` 会把输出留在终端滚屏、shell 历史、agent 上下文里。 */
 const SECRET_KEYS = new Set(['ak', 'sk']);
 
-function maskSecret(value: string): string {
+export function maskSecret(value: string): string {
   if (value.length <= 4) return '****';
   return `${value.slice(0, 2)}${'*'.repeat(Math.max(4, value.length - 4))}${value.slice(-2)}`;
+}
+
+/** 输出任何配置值时都经过这里：密钥只看得到首尾，其余原样。 */
+export function displayValue(key: string, value: string): string {
+  return SECRET_KEYS.has(key) ? maskSecret(value) : value;
+}
+
+/** 拆 `key=value`。值里可能含 `=`（base64 密钥、URL 参数），只切第一个等号。 */
+export function parseAssignment(input: string): { key: string; value: string } | undefined {
+  const eq = input.indexOf('=');
+  if (eq <= 0) return undefined;
+  return { key: input.slice(0, eq), value: input.slice(eq + 1) };
 }
 
 export function createConfigCommand(): Command {
@@ -19,18 +31,18 @@ export function createConfigCommand(): Command {
     .option('--unset <key>', 'Remove a configuration value')
     .action((options) => {
       if (options.set) {
-        const parts = options.set.split('=');
-        if (parts.length !== 2) {
+        const assignment = parseAssignment(options.set);
+        if (!assignment) {
           console.error('Usage: config --set key=value');
           process.exit(1);
         }
-        const [key, value] = parts;
+        const { key, value } = assignment;
         setConfig(key, value);
-        console.log(`Set ${key}=${value}`);
+        console.log(`Set ${key}=${displayValue(key, value)}`);
       } else if (options.get) {
         const value = getConfig(options.get);
         if (value !== undefined) {
-          console.log(SECRET_KEYS.has(options.get) ? maskSecret(value) : value);
+          console.log(displayValue(options.get, value));
         } else {
           console.error(`Config key '${options.get}' not found`);
           process.exit(1);
@@ -42,7 +54,7 @@ export function createConfigCommand(): Command {
           console.log('No configuration values set');
         } else {
           for (const [key, value] of entries) {
-            console.log(`${key}=${SECRET_KEYS.has(key) ? maskSecret(value) : value}`);
+            console.log(`${key}=${displayValue(key, value)}`);
           }
         }
       } else if (options.unset) {

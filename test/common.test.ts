@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildQueryExpression, resolveFormat } from '../src/cli/commands/common';
+import { buildQueryExpression, resolveFormat, resolveTimeParams } from '../src/cli/commands/common';
 
 describe('buildQueryExpression', () => {
   test('没有筛选条件时不生成表达式', () => {
@@ -33,6 +33,26 @@ describe('buildQueryExpression', () => {
       expr,
       'level:error AND appName:"svc-a" AND content:"timeout" AND REQUEST_ID:"abc"'
     );
+  });
+});
+
+describe('resolveTimeParams', () => {
+  test('相对时长在解析时就算成绝对区间，而不是把 last 传下去', () => {
+    // 传 last 下去会让每页重算 Date.now()，窗口向前滑，游标会滑出区间
+    const { startTime, endTime } = resolveTimeParams({ last: '2h' });
+
+    assert.match(startTime, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(new Date(endTime).getTime() - new Date(startTime).getTime(), 2 * 60 * 60 * 1000);
+  });
+
+  test('--st/--et 被当作开始/结束时间', () => {
+    const { startTime, endTime } = resolveTimeParams({
+      st: '2026-10-24T06:00:00Z',
+      et: '2026-10-24T07:00:00Z',
+    });
+
+    assert.equal(startTime, '2026-10-24T06:00:00.000Z');
+    assert.equal(endTime, '2026-10-24T07:00:00.000Z');
   });
 });
 

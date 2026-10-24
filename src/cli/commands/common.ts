@@ -1,4 +1,5 @@
 import { loadConfig } from '../../config';
+import { resolveTimeRange } from '../../lts/client';
 import { LTSConfig, QueryParams, OutputFormat, QueryResult } from '../../types';
 
 /** 加载配置并校验凭证，缺失时打印引导并退出 */
@@ -49,8 +50,18 @@ export interface TimeOptions {
   last?: string;
 }
 
-/** 解析时间选项：--last 与 --st/--et 互斥，至少提供一组 */
-export function resolveTimeParams(options: TimeOptions, defaultLast?: string): Pick<QueryParams, 'startTime' | 'endTime' | 'last'> {
+/**
+ * 解析时间选项：`--last` 与 `--st/--et` 互斥，至少提供一组。
+ *
+ * 返回值一律是绝对区间（ISO 8601）。相对时长必须在这里就换算掉、只算一次：
+ * 若把 `last` 传下去，每翻一页都会重算一次 `Date.now()`，窗口随时间往前滑，
+ * 游标（line_num）一旦滑出 [start, end]，服务端直接报
+ * “line_num must be between them”，`--all` 会中途失败。
+ */
+export function resolveTimeParams(
+  options: TimeOptions,
+  defaultLast?: string
+): Required<Pick<QueryParams, 'startTime' | 'endTime'>> {
   const startTime = options.startTime || options.st;
   const endTime = options.endTime || options.et;
   const last = options.last || (!startTime && !endTime ? defaultLast : undefined);
@@ -65,7 +76,18 @@ export function resolveTimeParams(options: TimeOptions, defaultLast?: string): P
     process.exit(1);
   }
 
-  return last ? { last } : { startTime, endTime };
+  let range: { startMs: number; endMs: number };
+  try {
+    range = resolveTimeRange(last ? { last } : { startTime, endTime });
+  } catch (error: any) {
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
+  }
+
+  return {
+    startTime: new Date(range.startMs).toISOString(),
+    endTime: new Date(range.endMs).toISOString(),
+  };
 }
 
 export interface FilterOptions {

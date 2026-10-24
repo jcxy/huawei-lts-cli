@@ -70,6 +70,7 @@ const QUERY_OPTS =
   '-g --group-id -s --stream-id --start-time --end-time --st --et --last -q --query --app --content --request-id -l --limit -r --reverse -f --format --all';
 const TRACE_OPTS =
   '-g --group-id -s --stream-id --field --last --start-time --end-time --st --et -l --limit -f --format';
+const CONTEXT_OPTS = '-g --group-id -s --stream-id --line-num --time --before --after -f --format';
 const VALUE_OPTS = '-g --group-id -s --stream-id -f --format';
 
 // Shell completion support
@@ -84,6 +85,7 @@ _lts_cli_completion() {
   local words cword
   _get_comp_words_by_ref -n : words cword
   local cur="\${words[cword]}"
+  local prev="\${words[cword-1]}"
 
   if (( cword == 1 )); then
     COMPREPLY=( $(compgen -W "query trace context groups streams fields config init completion" -- "\$cur") )
@@ -94,7 +96,7 @@ _lts_cli_completion() {
   case "\$cmd" in
     query)
       case "\$prev" in
-        -g|--group-id|-s|--stream-id|-q|--query|--app|--content|--request-id|-l|--limit|-f|--format)
+        -g|--group-id|-s|--stream-id|-q|--query|--app|--content|--request-id|--start-time|--end-time|--st|--et|--last|-l|--limit|-f|--format)
           COMPREPLY=()
           return
           ;;
@@ -106,7 +108,7 @@ _lts_cli_completion() {
       ;;
     trace)
       case "\$prev" in
-        -g|--group-id|-s|--stream-id|--field|--last|-l|--limit|-f|--format)
+        -g|--group-id|-s|--stream-id|--field|--start-time|--end-time|--st|--et|--last|-l|--limit|-f|--format)
           COMPREPLY=()
           return
           ;;
@@ -115,6 +117,26 @@ _lts_cli_completion() {
           return
           ;;
       esac
+      ;;
+    context)
+      case "\$prev" in
+        -g|--group-id|-s|--stream-id|--line-num|--time|--before|--after|-f|--format)
+          COMPREPLY=()
+          return
+          ;;
+        *)
+          COMPREPLY=( $(compgen -W "${CONTEXT_OPTS}" -- "\$cur") )
+          return
+          ;;
+      esac
+      ;;
+    groups)
+      COMPREPLY=( $(compgen -W "-f --format" -- "\$cur") )
+      return
+      ;;
+    streams)
+      COMPREPLY=( $(compgen -W "${VALUE_OPTS}" -- "\$cur") )
+      return
       ;;
     fields)
       COMPREPLY=( $(compgen -W "${VALUE_OPTS}" -- "\$cur") )

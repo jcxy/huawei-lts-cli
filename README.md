@@ -153,10 +153,10 @@ lts-cli query --last 1h -f json | jq '.logs[].content'
 --app <取值>              appName:"<取值>"，与 -q 用 AND 合并
 --content <关键词>        content:"<关键词>"，与 -q 用 AND 合并
 --request-id <id>         REQUEST_ID:"<id>"，按时间正序输出
--l, --limit <n>           每页条数（默认 100），--all 时即单页大小
+-l, --limit <n>           每页条数（默认 100，上限 5000），--all 时同时是总数上限
 -r, --reverse             最新优先
 -f, --format <fmt>        pretty（默认）/ table / json
---all                     沿游标读到末尾（上限 10000 条）
+--all                     沿游标读到末尾（默认上限 10000 条，显式 -l 则为 -l）
 ```
 
 `--app` / `--content` / `--request-id` 自动为值加双引号——含连字符的 UUID 不加引号会被分词导致匹配不到。
@@ -167,11 +167,20 @@ lts-cli query --last 1h -f json | jq '.logs[].content'
 lts-cli trace <id> [--field <name>] [--last 24h] [-l 200] [-f fmt]
 ```
 
-按时间正序拉出一条 ID 的完整链路。默认走全文检索（不依赖任何特定字段命名）；如果你的日志流有专用字段，配一次即可：
+按时间正序拉出一条 ID 的完整链路。字段选择顺序是 `--field` → `config.traceField` → 运行时读一次流的索引配置：把 `REQUEST_ID` / `trace_id` / `span_id` 这类 ID 字段和全文检索 `content` 一起 OR 上。结构化日志的 ID 住在 labels 里，全文索引只覆盖正文，所以不能只靠 `content`。零命中时 stderr 会列出试过哪些字段。
 
 ```bash
-lts-cli config --set traceField=REQUEST_ID
+lts-cli trace <id> --field REQUEST_ID        # 临时指定
+lts-cli config --set traceField=REQUEST_ID   # 这条流长期如此才值得配
 ```
+
+### `lts-cli context`
+
+```bash
+lts-cli context --line-num <lineNum> [--time <毫秒>] [--before 20] [--after 20]
+```
+
+`--time` 可省：`line_num` 本身就是纳秒时间戳，前 13 位即毫秒，CLI 自己推。
 
 ## 配置说明
 
@@ -186,7 +195,7 @@ lts-cli config --set traceField=REQUEST_ID
 | `endpoint` | 否 | 需包含 `https://` |
 | `groupId` | 否 | 默认日志组 ID |
 | `streamId` | 否 | 默认日志流 ID |
-| `traceField` | 否 | `trace` 默认匹配的字段名，缺省为 `content` |
+| `traceField` | 否 | `trace` 的匹配字段名；不配则自动从流索引里发现 ID 字段 |
 
 `lts-cli config --list` 会把 `ak` / `sk` 脱敏输出，避免凭证进入终端滚屏、shell 历史或 AI 上下文。
 

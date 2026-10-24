@@ -4,6 +4,25 @@
 
 ## [未发布]
 
+### 修复
+
+- 降序翻页静默返回大量重复数据：`--all -r` 之前按排序方向把 `search_type` 推成 `backwards`，服务端会把刚拿到的那一段再给一遍（实测第二页与第一页重叠 38%~100%，且不报错）。现在续读一律用 `forwards`（详见 [ADR-0005](docs/adr/0005-full-scan-invariants.md)）
+- `--last` 每页重算导致时间窗口向后滑动，游标可能滑出 `[start, end]` 而报 `LTS.0701`。相对时间现在在开查前就固定成绝对区间
+- `trace` 默认搜 `content` 在结构化日志上永远零命中（全文索引只覆盖正文，ID 在 labels 里）。现在按 `--field` → `config.traceField` → 流索引里发现的 `REQUEST_ID` / `trace_id` / `span_id` 逐个 OR，找不到时 stderr 列出试过的字段
+- SDK 的 log4js 把整个 axios 错误对象（含 Authorization 头）写进 stdout，`-f json` 输出因此不可解析。现在改道 stderr 并默认关闭，排查 SDK 问题时设 `LTS_CLI_DEBUG=1`
+- `config --set` 回显明文 AK/SK；现在与 `--get` / `--list` 一样脱敏，且值里含 `=` 时不再拆错
+- `-l` 超过服务端单页上限（5000）时直接报 `LTS.1903`；现在本地就给出 `--limit must be between 1 and 5000`，翻页内部也会封顶
+- bash 补全里 `$prev` 从未赋值，取值型选项后面仍会提示选项；`context` / `groups` / `streams` 也补上了补全分支
+
+### 变更
+
+- `context` 的 `--time` 改为可选：`line_num` 本身就是纳秒时间戳，前 13 位即毫秒，CLI 自己推
+- `query --all` 显式传 `-l` 时以 `-l` 为总数上限（与帮助文本一致），未传仍为 10000
+
+### 移除
+
+- `src/cli/options.ts`：无任何引用的死代码，且含 `--offset` 等已废弃选项
+
 ## [2.1.0] - 2026-10-24
 
 ### 变更

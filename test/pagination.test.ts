@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchAllPages, cursorDirection, nextCursor } from '../src/lts/pagination';
+import { fetchAllPages, nextCursor, CONTINUE_SEARCH_TYPE, MAX_PAGE_SIZE } from '../src/lts/pagination';
 import { LogEntry, QueryParams, QueryResult } from '../src/types';
 
 function log(lineNum: string): LogEntry {
@@ -34,11 +34,11 @@ function fakeFetcher(pages: string[][], extra: Partial<QueryResult> = {}) {
   return { fetcher, calls };
 }
 
-describe('cursorDirection', () => {
-  test('倒序往更早读，正序往更晚读', () => {
-    assert.equal(cursorDirection(true), 'backwards');
-    assert.equal(cursorDirection(false), 'forwards');
-    assert.equal(cursorDirection(undefined), 'forwards');
+describe('CONTINUE_SEARCH_TYPE', () => {
+  test('续读用 forwards，而不是按排序方向猜', () => {
+    // 实测：降序配 backwards 会把上一页那一段再给一遍（第二页与第一页 line_num 重叠
+    // 38%~100%），且不报错；forwards 连翻 10 页边界重叠为 0。
+    assert.equal(CONTINUE_SEARCH_TYPE, 'forwards');
   });
 });
 
@@ -70,14 +70,14 @@ describe('fetchAllPages', () => {
     assert.equal(calls[2].lineNum, '4');
   });
 
-  test('游标方向跟随排序方向，反了会重放同一段', async () => {
+  test('无论升序降序，续读都是 forwards', async () => {
     const asc = fakeFetcher([['1', '2'], ['3', '4']]);
     await fetchAllPages(asc.fetcher, { ...baseParams, reverse: false }, { pageSize: 2 });
     assert.equal(asc.calls[1].searchType, 'forwards');
 
     const desc = fakeFetcher([['9', '8'], ['7', '6']]);
     await fetchAllPages(desc.fetcher, { ...baseParams, reverse: true }, { pageSize: 2 });
-    assert.equal(desc.calls[1].searchType, 'backwards');
+    assert.equal(desc.calls[1].searchType, 'forwards');
     assert.equal(desc.calls[1].lineNum, '8');
   });
 
@@ -147,5 +147,14 @@ describe('fetchAllPages', () => {
     await fetchAllPages(fetcher, { ...baseParams, limit: 37 });
 
     assert.equal(calls[0].limit, 37);
+  });
+
+  test('pageSize 被服务端上限封顶，否则整次翻页直接报错', async () => {
+    const { fetcher, calls } = fakeFetcher([['1']]);
+
+    await fetchAllPages(fetcher, baseParams, { pageSize: 50000 });
+
+    assert.equal(calls[0].limit, MAX_PAGE_SIZE);
+    assert.equal(MAX_PAGE_SIZE, 5000);
   });
 });

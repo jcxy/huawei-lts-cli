@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { LtsClient } from '@huaweicloud/huaweicloud-sdk-lts/v2/LtsClient';
 import { ClientBuilder } from '@huaweicloud/huaweicloud-sdk-core/ClientBuilder';
 import { BasicCredentials } from '@huaweicloud/huaweicloud-sdk-core/auth/BasicCredentials';
@@ -19,7 +20,34 @@ import {
   StreamInfo,
   StreamIndex,
 } from '../types';
-import { cursorDirection } from './pagination';
+import { CONTINUE_SEARCH_TYPE } from './pagination';
+
+/**
+ * 华为云 SDK 把 log4js 的 console appender 指向 stdout，任何 API 错误都会把整个
+ * axios 错误对象（含 Authorization 头）倒进 stdout——`-f json` 的输出因此变成
+ * 不可解析的混合体。这里把 SDK 日志改道 stderr 并默认关闭：CLI 自己会打印
+ * 一行可读的错误，6KB 的 axios dump 只会淹没它。要排查 SDK 层问题时设
+ * LTS_CLI_DEBUG=1。
+ *
+ * 解析到的必须是 SDK 自己那个 log4js 实例，否则 configure 改的是另一份模块状态。
+ * 拿不到就保持原状：日志难看，但不影响结果本身。
+ */
+function configureSdkLogger(): void {
+  try {
+    const corePkg = require.resolve('@huaweicloud/huaweicloud-sdk-core/package.json');
+    const log4js = require(require.resolve('log4js', { paths: [path.dirname(corePkg)] }));
+    log4js.configure({
+      appenders: { sdkStderr: { type: 'stderr' } },
+      categories: {
+        default: { appenders: ['sdkStderr'], level: process.env.LTS_CLI_DEBUG ? 'all' : 'off' },
+      },
+    });
+  } catch {
+    /* 无法改道时不做任何事 */
+  }
+}
+
+configureSdkLogger();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,7 +61,9 @@ const DURATION_UNIT_MS: Record<string, number> = {
 };
 
 /** 解析相对时间范围（如 30m/2h/1d），返回 [startMs, endMs] */
-export function resolveTimeRange(params: QueryParams): { startMs: number; endMs: number } {
+export function resolveTimeRange(
+  params: Pick<QueryParams, 'startTime' | 'endTime' | 'last'>
+): { startMs: number; endMs: number } {
   if (params.last) {
     const match = DURATION_REGEX.exec(params.last.trim());
     if (!match) {
@@ -88,6 +118,15 @@ export function parseQueryExpression(expr: string): ParsedQueryExpression {
   }
 
   return { keywords: trimmed, isAnalysisQuery: false };
+}
+
+/**
+ * line_num 是 19 位纳秒时间戳，前 13 位就是毫秒（实测与日志时间严格对齐）。
+ * `context` 接口要求传毫秒时间戳，而 LTS 的日志记录本身不带时间字段，只能从
+ * line_num 推。格式不符时返回 undefined，让调用方要求显式 --time。
+ */
+export function anchorTimeFromLineNum(lineNum: string): string | undefined {
+  return /^\d{19}$/.test(lineNum) ? lineNum.slice(0, 13) : undefined;
 }
 
 /** 服务端默认在命中词上包裹 <HighLightTag>，输出前剥离 */
@@ -146,7 +185,7 @@ export class LTSClient {
     // 游标翻页：首屏不带游标，后续页把上一页末条的 line_num 当作续读起点
     if (params.lineNum) {
       queryParams.withLineNum(params.lineNum);
-      queryParams.withSearchType(params.searchType ?? cursorDirection(params.reverse));
+      queryParams.withSearchType(params.searchType ?? CONTINUE_SEARCH_TYPE);
     }
 
     const request = new ListLogsRequest(params.groupId, params.streamId, 'application/json')

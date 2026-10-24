@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseQueryExpression, resolveTimeRange } from '../src/lts/client';
+import { anchorTimeFromLineNum, parseQueryExpression, resolveTimeRange } from '../src/lts/client';
 import { QueryParams } from '../src/types';
 
 describe('parseQueryExpression', () => {
@@ -38,6 +38,19 @@ describe('parseQueryExpression', () => {
 
   test('前后空白被裁掉', () => {
     assert.equal(parseQueryExpression('  level:error  ').keywords, 'level:error');
+  });
+});
+
+describe('anchorTimeFromLineNum', () => {
+  test('line_num 是纳秒时间戳，前 13 位就是毫秒', () => {
+    // 实测：line_num 1792821600011000000 ↔ 2026-10-24T06:00:00.011Z
+    assert.equal(anchorTimeFromLineNum('1792821600011000000'), '1792821600011');
+  });
+
+  test('不是 19 位数字就不猜，交给调用方报错', () => {
+    assert.equal(anchorTimeFromLineNum(''), undefined);
+    assert.equal(anchorTimeFromLineNum('12345'), undefined);
+    assert.equal(anchorTimeFromLineNum('179282160001100000a'), undefined);
   });
 });
 

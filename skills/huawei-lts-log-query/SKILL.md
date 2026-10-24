@@ -88,11 +88,11 @@ lts-cli query --last 2h --app <appName> --content <关键词> -r -l 50
 lts-cli trace <id> --last 24h
 ```
 
-默认走全文检索（`content:"<id>"`），因此不依赖任何特定字段命名。如果这条流确实有专用字段（比如 `REQUEST_ID`、`trace_id`），只配一次即可：
+字段顺序是 `--field` → `config.traceField` → 读一次流的索引配置，把 `REQUEST_ID` / `trace_id` / `span_id` 这类字段和全文检索 `content` 一起 OR 上（哪个命中都算）。结构化日志的 ID 通常住在 labels 里，全文索引覆盖不到正文以外的字段，所以不能只搜 `content`。零命中时 stderr 会写出试过哪些字段：
 
 ```bash
-lts-cli config --set traceField=REQUEST_ID
-lts-cli trace <id>              # 之后都按该字段精确匹配
+lts-cli trace <id> --field REQUEST_ID   # 临时指定
+lts-cli config --set traceField=REQUEST_ID   # 这条流长期如此才值得配
 ```
 
 `trace` 按时间正序输出，不加应用过滤（一条链路本来就会横跨多个应用）。
@@ -100,10 +100,10 @@ lts-cli trace <id>              # 之后都按该字段精确匹配
 ### 3. 查看某条日志的上下文
 
 ```bash
-lts-cli context --line-num <lineNum> --time <毫秒时间戳> --before 20 --after 20
+lts-cli context --line-num <lineNum> --before 20 --after 20
 ```
 
-`lineNum` 就是 `query` / `trace` 输出里每行开头方括号内的值（`-f json` 里的 `lineNum` 字段）。
+`lineNum` 就是 `query` / `trace` 输出里每行开头方括号内的值（`-f json` 里的 `lineNum` 字段）。毫秒时间戳不用自己算：`line_num` 本身就是纳秒时间戳，前 13 位即目标日志的毫秒时间，CLI 会自己推。只有 line_num 格式意外时，才需要补 `--time <毫秒>`。
 
 ### 4. 拉全量结果
 
@@ -111,7 +111,7 @@ lts-cli context --line-num <lineNum> --time <毫秒时间戳> --before 20 --afte
 lts-cli query --last 1h -q "<条件>" --all -f json
 ```
 
-- `--all` 沿游标读到末尾，上限 10000 条
+- `--all` 沿游标读到末尾，默认上限 10000 条；显式给 `-l N` 时以 N 为上限（N ≤ 5000，服务端单页上限）
 - 出现 `stopped at the N-log cap` 说明还有更多，缩小范围或加条件
 - 出现 `isQueryComplete=false` 说明服务端本身没给全，必须缩时间范围重查
 

@@ -76,10 +76,10 @@ lts-cli query [选项]
 | `--app <取值>` | `appName:"<取值>"`，与 `-q` 用 AND 合并 |
 | `--content <关键词>` | `content:"<关键词>"`，与 `-q` 用 AND 合并 |
 | `--request-id <id>` | `REQUEST_ID:"<id>"`，并强制时间正序（链路定位用） |
-| `-l, --limit <n>` | 每页条数，默认 100；`--all` 时即单页大小 |
+| `-l, --limit <n>` | 每页条数，默认 100；`--all` 时同时是总数上限；上限 5000（服务端单页上限，超过本地就报错） |
 | `-r, --reverse` | 最新优先 |
 | `-f, --format <fmt>` | `pretty`（默认）/ `table` / `json` |
-| `--all` | 沿游标读到末尾，上限 10000 条 |
+| `--all` | 沿游标读到末尾，默认上限 10000 条；显式给 `-l` 时以 `-l` 为上限 |
 
 已移除：`--offset`（LTS 没有 offset 语义）、`-k/--keyword`（与 `-q` 完全等价）、`--no-paginate`（单页本来就是默认）。脚本升级到 2.x 时这三处需要改。
 
@@ -91,17 +91,19 @@ lts-cli trace <id> [--field <name>] [--last 24h] [-l 200] [-f fmt]
 
 按时间正序拉出一条 ID 的完整链路。
 
-- `--field` 缺省时依次取 `config.traceField`、`content`（全文检索）
+- `--field` 缺省时依次取 `config.traceField`、运行时从流索引里发现的 ID 字段（`REQUEST_ID` / `trace_id` / `span_id` …）与 `content`，拼成 `A:"<id>" OR B:"<id>" …`
+- 结构化日志的 ID 在 labels 里，而全文索引只覆盖正文，所以不能只搜 `content`（实测：`content:"<uuid>"` 零命中，`REQUEST_ID:"<uuid>"` 命中）
+- 零命中时 stderr 会列出试过哪些字段
 - 值会被自动加引号，因此含连字符的 UUID 能整体匹配
 - `-l` 是总数上限；内部每页最多 500 条
 
 ## context
 
 ```bash
-lts-cli context --line-num <n> --time <毫秒> [--before 20] [--after 20] [-f fmt]
+lts-cli context --line-num <n> [--time <毫秒>] [--before 20] [--after 20] [-f fmt]
 ```
 
-读取某条日志前后各 N 行，等价于控制台的「查看上下文」。`lineNum` 与 `time` 都取自 `query` 的输出。
+读取某条日志前后各 N 行，等价于控制台的「查看上下文」。`lineNum` 取自 `query` / `trace` 的输出；`--time` 可省，CLI 用 `line_num` 的前 13 位（纳秒 → 毫秒）推导，推导不出来时才报错要求显式传。
 
 ## config
 
@@ -147,19 +149,23 @@ lts-cli completion powershell # 追加到 $PROFILE
 }
 ```
 
-- `lineNum` 是 LTS 的 `line_num`，同时是排序键和翻页游标。**它不是时间戳**——LTS 日志记录本身不带时间字段。
+- `lineNum` 是 LTS 的 `line_num`，同时是排序键和翻页游标。它不是日志记录里的独立时间字段，但这串数字本身是纳秒时间戳（前 13 位即毫秒），`context` 的 `--time` 就靠它推。
+- `line_num` **不唯一**：同一纳秒内的多条日志会共用同一个值，所以不能用它当去重键。
 - `isQueryComplete` 为 `false` 表示服务端没给全；字段缺失（`undefined`）不代表不完整，不要当成 `false`。
 - 分析查询的结果在 `analysisLogs` 里，转成 `logs` 后 `lineNum` 为空，无法翻页。
 
 ## 翻页与完整性
 
-LTS 没有 offset，只有「从某个 `line_num` 往一个方向续读」：首页不带游标，之后每次把上一页最后一条的 `line_num` 当游标，方向由排序决定（倒序 → `backwards`，正序 → `forwards`）。
+LTS 没有 offset，只有「从某个 `line_num` 往一个方向续读」：首页不带游标，之后每次把上一页最后一条的 `line_num` 当游标，`search_type` 一律用 `forwards`（表示「沿当前排序方向继续」，与 `is_desc` 无关）。
+
+不要按排序方向推 `search_type`。实测（cn-south-1）：降序查询配 `backwards` 会把刚拿到的那一段重放一遍，第二页与第一页重叠 38%~100%，且不报错。
 
 CLI 的 `--all` 已经实现了这件事，包括：
 
 - 不满一页即停
 - 游标不前进即停（防止服务端把同一段重放时无限循环）
-- 触达 10000 条上限时向 stderr 输出 `stopped at the N-log cap`
+- 触达上限（默认 10000，显式 `-l` 则以 `-l` 为准）时向 stderr 输出 `stopped at the N-log cap`
+- 单页条数被服务端上限（5000）封顶，不会因为 `-l` 写大了而整次报错
 - 任何一页报告 `isQueryComplete=false` 时向 stderr 输出警告
 
 **stderr 的警告不是装饰。** 它出现时，把这个结果当结论就是错的。

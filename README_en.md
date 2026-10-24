@@ -153,10 +153,10 @@ lts-cli query --last 1h -f json | jq '.logs[].content'
 --app <value>             appName:"<value>", ANDed with -q
 --content <keyword>       content:"<keyword>", ANDed with -q
 --request-id <id>         REQUEST_ID:"<id>", chronological output
--l, --limit <n>           Page size (default 100); also the page size for --all
+-l, --limit <n>           Page size (default 100, max 5000); with --all it also caps the total
 -r, --reverse             Newest first
 -f, --format <fmt>        pretty (default) / table / json
---all                     Follow the cursor to the end (up to 10000 logs)
+--all                     Follow the cursor to the end (up to 10000 logs, or -l when given)
 ```
 
 `--app` / `--content` / `--request-id` quote the value for you — a UUID with hyphens is tokenized apart without quotes, and then never matches.
@@ -167,11 +167,20 @@ lts-cli query --last 1h -f json | jq '.logs[].content'
 lts-cli trace <id> [--field <name>] [--last 24h] [-l 200] [-f fmt]
 ```
 
-Fetches one ID's full chain in chronological order. It searches full text by default (no dependence on any particular field naming). If your stream does have a dedicated field, configure it once:
+Fetches one ID's full chain in chronological order. Field resolution is `--field` → `config.traceField` → a one-off read of the stream index: ID-shaped fields (`REQUEST_ID` / `trace_id` / `span_id`) are ORed with the full-text `content`. Structured logs keep their IDs in labels, and the full-text index only covers the message body, so `content` alone cannot find them. On zero hits, stderr lists the fields that were tried.
 
 ```bash
-lts-cli config --set traceField=REQUEST_ID
+lts-cli trace <id> --field REQUEST_ID        # one-off
+lts-cli config --set traceField=REQUEST_ID   # only if this stream always works that way
 ```
+
+### `lts-cli context`
+
+```bash
+lts-cli context --line-num <lineNum> [--time <ms>] [--before 20] [--after 20]
+```
+
+`--time` is optional: `line_num` is itself a nanosecond timestamp, so the CLI derives the millisecond value from its first 13 digits.
 
 ## Configuration
 
@@ -186,7 +195,7 @@ lts-cli config --set traceField=REQUEST_ID
 | `endpoint` | no | Must include `https://` |
 | `groupId` | no | Default log group ID |
 | `streamId` | no | Default log stream ID |
-| `traceField` | no | Field `trace` matches against; defaults to `content` |
+| `traceField` | no | Field `trace` matches against; discovered from the stream index when unset |
 
 `lts-cli config --list` masks `ak` / `sk`, so credentials don't end up in terminal scrollback, shell history, or an AI context window.
 

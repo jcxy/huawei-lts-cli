@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { LTSClient } from '../../lts/client';
+import { LTSClient, anchorTimeFromLineNum } from '../../lts/client';
 import { formatOutput } from '../../output';
 import { ContextParams } from '../../types';
 import {
@@ -16,7 +16,7 @@ export function createContextCommand(): Command {
     .option('-g, --group-id <groupId>', 'Log group ID (can also be set via config)')
     .option('-s, --stream-id <streamId>', 'Log stream ID (can also be set via config)')
     .requiredOption('--line-num <lineNum>', 'line_num of the anchor log entry')
-    .requiredOption('--time <time>', 'Timestamp (ms) of the anchor log entry')
+    .option('--time <time>', 'Timestamp (ms) of the anchor log entry (derived from --line-num when omitted)')
     .option('--before <count>', 'Number of logs before the anchor', (v: string) => parseInt(v, 10), 20)
     .option('--after <count>', 'Number of logs after the anchor', (v: string) => parseInt(v, 10), 20)
     .option('-f, --format <format>', 'Output format: json, table, pretty', 'pretty')
@@ -25,13 +25,23 @@ export function createContextCommand(): Command {
       const { groupId, streamId } = resolveGroupStream(options, config);
       const format = resolveFormat(options.format);
 
+      // line_num 本身就是纳秒时间戳，前 13 位即目标日志的毫秒时间。
+      // 让用户再抄一遍 --time 是纯粹的重复劳动，还会抄错。
+      const time = options.time ?? anchorTimeFromLineNum(options.lineNum);
+      if (!time) {
+        console.error(
+          `Cannot derive the anchor time from line_num '${options.lineNum}'. Pass --time <ms>.`
+        );
+        process.exit(1);
+      }
+
       const client = new LTSClient(config);
 
       const params: ContextParams = {
         groupId,
         streamId,
         lineNum: options.lineNum,
-        time: options.time,
+        time,
         before: options.before,
         after: options.after,
       };
