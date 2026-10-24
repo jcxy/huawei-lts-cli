@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>huawei-lts-cli</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: #0d1117;
+    background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.075) 1px, transparent 0);
+    background-size: 26px 26px;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    color: #e6edf3;
+    display: flex;
+    align-items: center;
+    padding: 0 84px;
+    gap: 54px;
+  }
+
+  .left {
+    flex: 0 0 508px;
+  }
+
+  h1 {
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 54px;
+    font-weight: 700;
+    letter-spacing: -1.2px;
+    line-height: 1.1;
+    color: #ffffff;
+  }
+
+  .rule {
+    width: 68px;
+    height: 5px;
+    background: #cf0a2c;
+    margin: 26px 0 28px;
+    border-radius: 1px;
+  }
+
+  .tagline {
+    font-size: 21px;
+    line-height: 1.62;
+    color: #9198a1;
+    letter-spacing: 0.1px;
+  }
+
+  .install {
+    margin-top: 44px;
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 13.5px;
+    color: #6e7681;
+    letter-spacing: 0.2px;
+  }
+
+  .install .prompt {
+    color: #3fb950;
+  }
+
+  .terminal {
+    flex: 1 1 auto;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 28px 34px 34px;
+    box-shadow: 0 20px 52px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.025) inset;
+  }
+
+  .bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #30363d;
+  }
+
+  .lines {
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 15px;
+    line-height: 2.05;
+    white-space: pre;
+  }
+
+  .cmd { color: #c9d1d9; }
+  .dollar { color: #3fb950; }
+  .warn { color: #d29922; }
+  .error { color: #f85149; }
+  .dim { color: #6e7681; }
+  .rest { color: #adbac7; }
+</style>
+</head>
+<body>
+
+  <div class="left">
+    <h1>huawei-lts-cli</h1>
+    <div class="rule"></div>
+    <div class="tagline">
+      Query Huawei Cloud LTS logs<br>
+      from your terminal and your AI agent
+    </div>
+    <div class="install"><span class="prompt">$</span> npm i -g @cvtoolman/huawei-lts-cli</div>
+  </div>
+
+  <div class="terminal">
+    <div class="bar">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="lines"><span class="dollar">$</span> <span class="cmd">lts-cli query --last 1h</span>
+<span class="warn">WARN</span>  <span class="dim">10:14:02</span>  <span class="rest">slow upstream     cost=2310ms</span>
+<span class="error">ERROR</span> <span class="dim">10:14:05</span>  <span class="rest">checkout timeout</span>  <span class="dim">trace=9f3c</span></div>
+  </div>
+
+</body>
+</html>
