@@ -1,7 +1,9 @@
 import { Command } from 'commander';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as readline from 'readline';
 import { setConfig } from '../../config';
-import { writeProfileSkeleton } from '../../config/profile';
+import { getConfigDir } from '../../config/store';
 
 function ask(rl: readline.Interface, question: string): Promise<string> {
   return new Promise((resolve) => {
@@ -9,15 +11,18 @@ function ask(rl: readline.Interface, question: string): Promise<string> {
   });
 }
 
-/** 写 profile.md 骨架并告知路径。已存在则绝不覆盖——那是用户手写的内容。 */
-function reportProfileSkeleton(): void {
-  const { path, created } = writeProfileSkeleton();
-  if (created) {
-    console.log(`  profile.md = ${path} (skeleton created)`);
-    console.log('              业务词表：把「订单服务」这类称呼映射到日志里的实际取值');
-  } else {
-    console.log(`  profile.md = ${path} (existing, left untouched)`);
+/**
+ * 2.0 及更早版本会在凭证目录里生成一份业务词表骨架，那是把 AI 引进
+ * 明文 AK/SK 所在目录的入口。2.1 起不再生成，业务词表改由 skill 的
+ * `references/` 承载。这里只对老用户的残留文件做一次性提示，绝不代删。
+ */
+function reportLegacyProfile(): void {
+  const legacy = path.join(getConfigDir(), 'profile.md');
+  if (!fs.existsSync(legacy)) {
+    return;
   }
+  console.log(`  note: ${legacy} is no longer used since 2.1 — safe to delete.`);
+  console.log('        Business vocabulary now lives in the skill: references/vocab.md');
 }
 
 const ENDPOINT_MAP: Record<string, string> = {
@@ -132,7 +137,7 @@ export function createInitCommand(): Command {
 
         console.log('');
         console.log('✅ Configuration saved!');
-        reportProfileSkeleton();
+        reportLegacyProfile();
         console.log('');
         console.log('Try it out:');
         if (groupId && streamId) {
@@ -201,7 +206,7 @@ function importFromConsoleUrl(raw: string): void {
 
   console.log('');
   console.log('✅ Configuration saved!');
-  reportProfileSkeleton();
+  reportLegacyProfile();
   console.log('');
   console.log('Next steps:');
   console.log('  1. Configure credentials if not done yet: lts-cli init');

@@ -121,7 +121,9 @@ lts-cli init                          # 交互式
 lts-cli init --from-url "<控制台URL>"   # 从日志搜索页 URL 解析 region/groupId/streamId
 ```
 
-跑完会在 `~/.lts-cli/` 下生成 `config.json`（0600，含明文 AK/SK）和 `profile.md`（业务词表骨架，已存在则不覆盖）。
+跑完只生成 `~/.lts-cli/config.json`（0600，含明文 AK/SK）。它不生成任何业务词表——那是 skill 目录下可选的 `references/vocab.md`，由使用者自己决定写不写。
+
+2.0 及更早版本会在这个目录里再写一份 `profile.md` 骨架，2.1 起已废除；发现残留文件时 `init` 会提示一句，但不会代删。
 
 ## completion
 

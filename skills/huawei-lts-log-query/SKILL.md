@@ -15,7 +15,7 @@ description: 查询华为云日志服务（LTS）日志。先发现环境再查�
 2. **不猜大小写是否敏感。** 这是每条日志流各自的配置（`caseSensitive`），用 `fields` 读，不要假设。
 3. **不把 stderr 的警告当噪音。** 出现 `isQueryComplete=false` 或 `truncated` 警告时，结果是不完整的。此时**不要**把条数当结论、不要说「只有 N 条」，而要缩小时间范围重查。
 4. **没有 offset。** LTS 只能从某个 `line_num` 往一个方向续读。想拿全部结果用 `--all`，不要自己拼翻页。
-5. **不读 `~/.lts-cli/config.json`。** 里面是明文 AK/SK。需要业务词义时读 `~/.lts-cli/profile.md`。
+5. **不碰 `~/.lts-cli/`。** 那里住着明文 AK/SK（`config.json`）。不要读它，也不要 `ls` / `cat` / `Get-ChildItem` 整个目录——一次通配符展开就会把凭证带进上下文，而且无法撤回。要看配置用 `lts-cli config --list`（已脱敏）。
 
 ## 前置检查
 
@@ -47,13 +47,25 @@ lts-cli fields                      # 当前日志流的字段索引配置
 
 ## 业务词 → 日志取值
 
-用户说的往往不是日志里的值（「订单服务」而不是 `order-svc`）。先看有没有本机词表：
+用户说的往往不是日志里的值（「订单服务」而不是 `order-svc`）。按这个顺序找，不要跳步。
+
+**第一步：本 skill 自带的词表（可选）。** 用户可能在本 skill 的 `references/` 下放了一份业务词表，约定文件名是 `vocab.md`。存在才读，不存在就直接进第二步：
 
 ```bash
-cat ~/.lts-cli/profile.md      # 存在才读；不存在就跳过，直接问用户对应哪个应用
+cat <skill目录>/references/vocab.md   # 如 .qoder/skills/huawei-lts-log-query/references/vocab.md
 ```
 
-词表里有映射就直接用；没有就**列候选让用户确认，不要猜**。`profile.md` 由 `lts-cli init` 生成骨架，内容是本机私有的，不要写进任何提交。
+**第二步：运行时枚举候选值（主要手段）。** 把该字段的实际取值分布连条数一起列出来，拿着这张候选表去问用户：
+
+```bash
+lts-cli query --last 1d -q '* | SELECT appName, count(*) AS cnt GROUP BY appName ORDER BY cnt DESC LIMIT 50' -f json
+```
+
+字段名本身也不能猜——先用 `lts-cli fields` 确认哪个字段装的是应用名（`appName`、`service_name`、`app` 都有可能）。
+
+**第三步：仍然不确定就问。** 把候选值列出来让用户指认，不要自己挑一个最像的往下走。
+
+这三步的产物只活在当前这次会话里。不要把映射写进任何文件再提交——词表是用户本机的，随 skill 安装目录走，不进版本控制。
 
 ## 工作流
 
@@ -117,7 +129,7 @@ lts-cli query --last 1d -q '<搜索语句> | SELECT count(*) AS cnt, <字段> GR
 | --- | --- | --- |
 | 时间范围 | `--last <时长>` | 「最近1小时」→ `--last 1h` |
 | 精确起止 | `--st/--et <ISO8601>` | 用户给了明确时间时用，与 `--last` 互斥 |
-| 指定应用 | `--app <取值>` | 取值来自 `profile.md` 或 `streams`，不要编 |
+| 指定应用 | `--app <取值>` | 取值来自 `references/vocab.md`、候选值枚举或用户确认，不要编 |
 | 内容关键词 | `--content <词>` | 「包含 timeout」→ `--content timeout` |
 | 请求链路 | `trace <id>` | 「查这条请求的链路」 |
 | 任意组合 / 聚合 | `-q "<表达式>"` | 见 references/query-syntax.md |

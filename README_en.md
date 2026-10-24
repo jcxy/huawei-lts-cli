@@ -3,6 +3,7 @@
 [简体中文](README.md) | **English**
 
 [![npm version](https://img.shields.io/npm/v/@cvtoolman/huawei-lts-cli.svg)](https://www.npmjs.com/package/@cvtoolman/huawei-lts-cli)
+[![CI](https://github.com/jcxy/huawei-lts-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/jcxy/huawei-lts-cli/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > Let your AI coding assistant (Claude Code, Cursor, Copilot, Qoder, etc.) query Huawei Cloud Log Tank Service (LTS) logs — through natural language.
@@ -60,14 +61,15 @@ Requires Node.js >= 18.
 lts-cli init
 ```
 
-The wizard asks for AK, SK, Project ID and Region once, then writes two files:
+The wizard asks for AK, SK, Project ID and Region once, and writes exactly one file:
 
 | File | Holds | Read by |
 |---|---|---|
 | `~/.lts-cli/config.json` | credentials, default group/stream, `traceField` (mode 0600) | the CLI only |
-| `~/.lts-cli/profile.md` | business vocabulary: "order service" → the actual value in your logs | the AI only |
 
-**The CLI never reads `profile.md`; the AI never reads `config.json`.** The latter holds a plaintext AK/SK, so any design that has an agent read it is broken by construction.
+**Never hand that directory to an agent.** It holds a plaintext AK/SK. To inspect config, use `lts-cli config --list` (masked) instead of opening the file.
+
+Which log groups exist, what the fields are called, what values they take — all of that is read live via `lts-cli groups` / `streams` / `fields`. No second copy is kept in the repo or the config.
 
 If you have a console log-search page URL, import region / groupId / streamId from it:
 
@@ -77,27 +79,34 @@ lts-cli init --from-url "<console URL>"
 
 ### 3. Install the skill (for AI tools)
 
-The skill directory contains `SKILL.md` plus 2 reference documents — copy the whole directory:
+Use the [skills CLI](https://skills.sh) — one command, and it knows where each agent expects its skills:
 
 ```bash
-# Claude Code
+npx skills add jcxy/huawei-lts-cli -a claude-code    # Claude Code
+npx skills add jcxy/huawei-lts-cli -a qoder          # Qoder
+npx skills add jcxy/huawei-lts-cli -a cursor         # Cursor
+npx skills add jcxy/huawei-lts-cli                   # pick interactively
+```
+
+Restart your AI tool afterwards: skills are loaded at session start, so an already-open session will not pick it up. Use `npx skills update` to upgrade and `npx skills remove` to uninstall.
+
+Or copy it by hand — works with any tool:
+
+```bash
 git clone --depth 1 https://github.com/jcxy/huawei-lts-cli.git /tmp/huawei-lts-cli
-mkdir -p .claude/skills/huawei-lts-log-query
-cp -r /tmp/huawei-lts-cli/skills/huawei-lts-log-query/. .claude/skills/huawei-lts-log-query/
-
-# Qoder: swap .claude/skills/ for .qoder/skills/
-# Any other tool: use its directory (.cursor/skills/, etc.)
+cp -r /tmp/huawei-lts-cli/skills/huawei-lts-log-query <your skills dir>/
 ```
 
-Windows PowerShell:
+> By default `npx skills` symlinks to one git clone, so updates stay in sync. With `--copy` (the fallback when Windows refuses symlinks) or plugin-style installs, an upgrade replaces the whole directory — back up your vocabulary file first.
 
-```powershell
-git clone --depth 1 https://github.com/jcxy/huawei-lts-cli.git $env:TEMP\huawei-lts-cli
-New-Item -ItemType Directory -Force .claude\skills\huawei-lts-log-query | Out-Null
-Copy-Item -Recurse -Force $env:TEMP\huawei-lts-cli\skills\huawei-lts-log-query\* .claude\skills\huawei-lts-log-query\
-```
+### 4. Business vocabulary (optional)
 
-### 4. Use from the command line (without AI)
+The AI does not know what "order service" is called in your logs. Two paths, neither needs a config file:
+
+- **Default**: the AI enumerates candidate values at runtime with pipeline SQL (`* | SELECT appName, count(*) GROUP BY appName`) and asks you which one to use. Nothing is persisted, so nothing goes stale.
+- **To skip that step**: put the mapping in `references/vocab.md` inside the skill. The file does not exist by default, and it is git-ignored so it cannot be committed by accident.
+
+### 5. Use from the command line (without AI)
 
 ```bash
 # Latest 50 logs in the past 2 hours
@@ -216,7 +225,19 @@ The region → endpoint map built into `lts-cli init`:
 
 If yours isn't listed, pass `--set endpoint=https://...` or see the [LTS endpoint reference](https://support.huaweicloud.com/api-lts/lts_api_0011.html).
 
-## Upgrading from 1.x to 2.0
+## Upgrading
+
+### From 2.0 to 2.1
+
+| Change | Notes |
+|---|---|
+| `init` no longer writes `~/.lts-cli/profile.md` | Business vocabulary now lives in the skill as `references/vocab.md`. The old file can be deleted; leaving it changes nothing (the CLI never read it) |
+| SKILL.md gained runtime value enumeration | App names can be located without a vocabulary file |
+| `npx skills` install added | See “Install the skill” above |
+
+No command-line flags changed, so scripts keep working.
+
+### From 1.x to 2.0
 
 2.0 fixes three silent-failure bugs, hence the breaking changes:
 

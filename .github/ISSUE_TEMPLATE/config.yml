@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全问题 / 凭证泄漏
+    url: https://github.com/jcxy/huawei-lts-cli/security/advisories/new
+    about: 不要开公开 issue，请走私密报告通道。
+  - name: 用法问题
+    url: https://github.com/jcxy/huawei-lts-cli/blob/main/README.md
+    about: 命令、配置、skill 安装方式都写在 README 里。
