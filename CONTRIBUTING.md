@@ -14,11 +14,13 @@
 npm install
 npm run dev -- query --last 2h    # 直接从源码跑
 npm run typecheck                 # tsc --noEmit
-npm test                          # node:test + tsx，需要 Node >= 20.6
+npm test                          # node:test + tsx，需要 Node >= 22
 npm run build                     # 编译到 dist/
 ```
 
-CI 会跑 `typecheck`、`build`（Node 18/20/22）和 `test`（Node 20/22，Ubuntu + Windows）。提交前本地至少跑一遍 `npm run typecheck && npm test`。
+CI 会跑 `typecheck`、`build`（Node 18/20/22）和 `test`（Node 22/24，Ubuntu + Windows）。提交前本地至少跑一遍 `npm run typecheck && npm test`。
+
+> 测试要求 Node >= 22：`node --test "test/**/*.test.ts"` 的通配符支持直到 22 才落地，20 上会报 `Could not find`。
 
 ## 代码约定
 

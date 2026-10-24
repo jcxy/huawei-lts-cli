@@ -31,8 +31,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
-  # 测试要跑在 node >= 20.6：node:test 的 --import 参数在 18 上不可用。
-  # Windows 也跑一遍——这个工具的主力用户环境之一是 PowerShell。
+  # 测试要跑在 node >= 22：`node --test "test/**/*.test.ts"` 的通配符支持直到 22
+  # 才落地，在 20 上会报 Could not find。Windows 也跑一遍——主力用户环境之一是 PowerShell。
   test:
     name: test (node ${{ matrix.node }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [20, 22]
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -264,7 +264,7 @@ npm test           # node:test，覆盖纯函数与游标推进
 npm run typecheck  # tsc --noEmit
 ```
 
-测试使用 Node 内置的 `node:test` + `tsx`，不引入额外测试依赖。跑测试需要 Node >= 20.6（`--import` 的要求）。
+测试使用 Node 内置的 `node:test` + `tsx`，不引入额外测试依赖。跑测试需要 Node >= 22——`node --test` 的通配符支持直到 22 才落地，20 上会报 `Could not find`。CLI 本身在 Node 18 上可以正常运行，CI 的 typecheck/build 覆盖 18/20/22。
 
 架构约定见 [CONTEXT.md](CONTEXT.md) 与 [docs/adr/](docs/adr/)。提交前请读 [CONTRIBUTING.md](CONTRIBUTING.md)——里面写了这个仓库唯一不能被破坏的原则：**同一个事实只允许有一个来源**。
 
