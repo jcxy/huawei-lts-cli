@@ -2,10 +2,11 @@
 
 本文件记录面向使用者的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [2.1.1] - 2026-10-27
 
 ### 修复
 
+- `--all` 在页边界上静默少读：同纳秒的多条日志共用一个 `line_num`，一组正好被页边界切开时，排他游标会把剩下的兄弟记录整组跳过（实测单页 18 条、`--all -l 5` 只拿到 17 条，服务端不报错）。续读游标改为取末条的前一格（正序 `L-1`、降序 `L+1`），并按 `line_num + content + labels` 跳过已收走的组内条目（详见 [ADR-0006](docs/adr/0006-page-boundary-tie-groups.md)）
 - 降序翻页静默返回大量重复数据：`--all -r` 之前按排序方向把 `search_type` 推成 `backwards`，服务端会把刚拿到的那一段再给一遍（实测第二页与第一页重叠 38%~100%，且不报错）。现在续读一律用 `forwards`（详见 [ADR-0005](docs/adr/0005-full-scan-invariants.md)）
 - `--last` 每页重算导致时间窗口向后滑动，游标可能滑出 `[start, end]` 而报 `LTS.0701`。相对时间现在在开查前就固定成绝对区间
 - `trace` 默认搜 `content` 在结构化日志上永远零命中（全文索引只覆盖正文，ID 在 labels 里）。现在按 `--field` → `config.traceField` → 流索引里发现的 `REQUEST_ID` / `trace_id` / `span_id` 逐个 OR，找不到时 stderr 列出试过的字段
@@ -66,5 +67,6 @@
 - `-k, --keyword`：与 `-q` 请求完全一致
 - `--no-paginate`：单页本来就是默认行为，该参数从未被读取
 
+[2.1.1]: https://github.com/jcxy/huawei-lts-cli/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/jcxy/huawei-lts-cli/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jcxy/huawei-lts-cli/releases/tag/v2.0.0
