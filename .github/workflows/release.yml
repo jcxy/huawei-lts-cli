@@ -1,0 +1,72 @@
+name: Release
+
+# 打 tag 只创建指针，GitHub 的 Releases 页面需要单独建条目。
+# 这里在推 v* tag 时自动创建 Release，正文取 CHANGELOG 对应版本段；
+# 已存在同名 Release 时跳过，手动补写过正文的不会被覆盖。
+
+on:
+  push:
+    tags: ['v*']
+  # 手工重跑用：对已存在的 Release 会自动跳过，可安全重复触发
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发 Release 的 tag，如 v2.1.2'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether the release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "已存在 Release $RELEASE_TAG，跳过"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v ver="$version" '
+            index($0, "## [" ver "]") == 1 { capture = 1; next }
+            capture && index($0, "## [") == 1 { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG 中没有 $version 的段落，改用 GitHub 自动生成"
+            rm -f release-notes.md
+          fi
+
+      - name: Create GitHub release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s release-notes.md ]; then
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --generate-notes
+          fi

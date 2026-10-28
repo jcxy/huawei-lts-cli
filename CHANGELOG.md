@@ -2,6 +2,12 @@
 
 本文件记录面向使用者的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 工程化
+
+- 推送 `v*` tag 自动创建 GitHub Release，正文取本文件对应版本段；同名 Release 已存在时跳过，也可通过 `workflow_dispatch` 手工重跑
+
 ## [2.1.1] - 2026-10-27
 
 ### 修复
